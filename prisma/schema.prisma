@@ -1,0 +1,211 @@
+// Callio – Prisma Schema
+// Uses SQLite for local dev; swap DATABASE_URL to PostgreSQL for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────
+//  Auth
+// ──────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurants Restaurant[]
+}
+
+// ──────────────────────────────────────────
+//  Restaurant (multi-tenant core)
+// ──────────────────────────────────────────
+
+model Restaurant {
+  id          String  @id @default(cuid())
+  name        String
+  phone       String?
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  cuisineType String?
+  description String?
+  website     String?
+  logoUrl     String?
+
+  // Twilio
+  twilioNumber  String? @unique
+  webhookSecret String  @default(cuid())
+
+  // Opening hours stored as JSON string
+  // Format: {"mon":{"open":"11:00","close":"22:00","closed":false}, ...}
+  openingHours String @default("{}")
+
+  // AI Configuration
+  aiName        String  @default("Aria")
+  aiGreeting    String? // Custom first greeting
+  aiPersonality String? // Extra personality notes for prompt
+  aiMenuNotes   String? // Daily specials, 86'd items, chef notes shown in the MENU section
+  aiLanguage    String  @default("en-US")
+
+  // Feature flags
+  acceptReservations       Boolean @default(true)
+  acceptOrders             Boolean @default(true)
+  maxPartySize             Int     @default(10)
+  reservationSlotMinutes   Int     @default(30)
+  advanceReservationDays   Int     @default(30)
+
+  // Plan
+  plan      String @default("starter") // starter | pro | enterprise
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  menuItems    MenuItem[]
+  reservations Reservation[]
+  orders       Order[]
+  calls        Call[]
+}
+
+// ──────────────────────────────────────────
+//  Menu
+// ──────────────────────────────────────────
+
+model MenuItem {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  category    String  // e.g. "Starters", "Mains", "Desserts", "Drinks"
+  isAvailable Boolean @default(true)
+  allergens   String? // comma-separated: "gluten,dairy,nuts"
+  isVegetarian Boolean @default(false)
+  isVegan      Boolean @default(false)
+  isGlutenFree Boolean @default(false)
+  imageUrl    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurantId String
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
+}
+
+// ──────────────────────────────────────────
+//  Reservations
+// ──────────────────────────────────────────
+
+model Reservation {
+  id         String  @id @default(cuid())
+  guestName  String
+  guestPhone String
+  guestEmail String?
+  partySize  Int
+  date       String  // "2024-07-15"
+  time       String  // "19:00"
+  status     String  @default("confirmed") // confirmed | cancelled | completed | no-show
+
+  notes           String?
+  specialRequests String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  callId String?
+  call   Call?   @relation(fields: [callId], references: [id])
+}
+
+// ──────────────────────────────────────────
+//  Orders
+// ──────────────────────────────────────────
+
+model Order {
+  id          String @id @default(cuid())
+  orderNumber String @unique
+
+  guestName  String
+  guestPhone String
+
+  type   String @default("pickup") // pickup | delivery
+  status String @default("pending") // pending | confirmed | preparing | ready | delivered | cancelled
+
+  totalAmount     Float
+  deliveryAddress String?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurantId String
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  callId String?
+  call   Call?   @relation(fields: [callId], references: [id])
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id       String @id @default(cuid())
+  quantity Int
+  price    Float  // price at time of order
+  notes    String?
+
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ──────────────────────────────────────────
+//  Calls (call log + transcripts)
+// ──────────────────────────────────────────
+
+model Call {
+  id            String  @id @default(cuid())
+  twilioCallSid String  @unique
+  from          String  // caller phone number
+  to            String  // restaurant Twilio number
+  status        String  @default("in-progress") // in-progress | completed | failed | busy | no-answer
+
+  duration   Int?    // seconds
+  recordingUrl String?
+
+  // Conversation transcript stored as JSON string
+  // Format: [{"role":"assistant","content":"...","timestamp":"..."},...]
+  transcript String?
+
+  // AI-generated summary of the call
+  summary String?
+
+  // What was accomplished
+  // booked-reservation | placed-order | answered-query | transferred | no-outcome
+  outcome String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  reservations Reservation[]
+  orders       Order[]
+}
