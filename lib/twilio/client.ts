@@ -46,9 +46,9 @@ export function buildGreetingTwiml(
   <Gather input="speech" action="${gatherActionUrl}" method="POST" 
           speechTimeout="auto" speechModel="phone_call" language="${language}"
           timeout="10">
-    <Say voice="Polly.Joanna-Neural" language="${language}">${escapeXml(greeting)}</Say>
+    <Say voice="alice" language="${language}">${escapeXml(greeting)}</Say>
   </Gather>
-  <Say voice="Polly.Joanna-Neural">Sorry, I didn't hear anything. Please call back and I'll be happy to help. Goodbye!</Say>
+  <Say voice="alice">Sorry, I didn't hear anything. Please call back and I'll be happy to help. Goodbye!</Say>
   <Hangup/>
 </Response>`
 }
@@ -66,9 +66,9 @@ export function buildSpeakAndListenTwiml(
   <Gather input="speech" action="${gatherActionUrl}" method="POST"
           speechTimeout="auto" speechModel="phone_call" language="${language}"
           timeout="8">
-    <Say voice="Polly.Joanna-Neural" language="${language}">${escapeXml(text)}</Say>
+    <Say voice="alice" language="${language}">${escapeXml(text)}</Say>
   </Gather>
-  <Say voice="Polly.Joanna-Neural">I didn't catch that. Let me transfer you to our staff. One moment please.</Say>
+  <Say voice="alice">I didn't catch that. Let me transfer you to our staff. One moment please.</Say>
   <Hangup/>
 </Response>`
 }
@@ -79,7 +79,7 @@ export function buildSpeakAndListenTwiml(
 export function buildFarewellTwiml(text: string, language: string = 'en-US'): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural" language="${language}">${escapeXml(text)}</Say>
+  <Say voice="alice" language="${language}">${escapeXml(text)}</Say>
   <Pause length="1"/>
   <Hangup/>
 </Response>`
@@ -95,12 +95,12 @@ export function buildTransferTwiml(
 ): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural" language="${language}">${escapeXml(text)}</Say>
+  <Say voice="alice" language="${language}">${escapeXml(text)}</Say>
   <Pause length="1"/>
   <Dial timeout="30" callerId="${transferNumber}">
     <Number>${transferNumber}</Number>
   </Dial>
-  <Say voice="Polly.Joanna-Neural">I'm sorry, no one is available right now. Please call back during business hours. Goodbye!</Say>
+  <Say voice="alice">I'm sorry, no one is available right now. Please call back during business hours. Goodbye!</Say>
   <Hangup/>
 </Response>`
 }
